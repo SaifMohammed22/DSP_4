@@ -22,8 +22,13 @@ class FFTProcessor:
         
         Returns:
             Dictionary containing FFT components
+        
+        Note:
+            Converts to float64 for numerical precision in FFT computation.
+            This prevents numerical errors in frequency domain calculations
+            and ensures accurate inverse FFT reconstruction.
         """
-        # Perform FFT
+        # Perform FFT with float64 for numerical precision
         f = np.fft.fft2(image.astype(np.float64))
         fshift = np.fft.fftshift(f)
         

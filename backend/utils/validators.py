@@ -8,7 +8,8 @@ from werkzeug.datastructures import FileStorage
 class Validator:
     """Input validation utilities."""
     
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'gif'}
+    # Default allowed extensions - should match config.py ALLOWED_EXTENSIONS
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tiff'}
     
     @staticmethod
     def allowed_file(filename: str, allowed_extensions: Optional[set] = None) -> bool:

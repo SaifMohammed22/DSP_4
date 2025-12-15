@@ -63,9 +63,12 @@ class ProductionConfig(Config):
     def init_app(cls, app):
         """Initialize application with configuration."""
         super().init_app(app)
-        # Validate secret key in production
+        # In production, SECRET_KEY must be explicitly set via environment variable
         if cls.SECRET_KEY == 'change-this-in-production':
-            app.logger.warning('Using default SECRET_KEY in production! Please set SECRET_KEY environment variable.')
+            raise RuntimeError(
+                'SECRET_KEY must be set via environment variable in production. '
+                'Set SECRET_KEY environment variable before starting the application.'
+            )
 
 
 class TestingConfig(Config):

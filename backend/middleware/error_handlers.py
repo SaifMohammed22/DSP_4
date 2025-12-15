@@ -3,6 +3,23 @@ Centralized error handling for the FT Mixer application.
 """
 from flask import jsonify
 import traceback
+import re
+
+
+def sanitize_traceback(tb_string: str) -> str:
+    """
+    Sanitize traceback to remove sensitive file paths.
+    
+    Args:
+        tb_string: Raw traceback string
+    
+    Returns:
+        Sanitized traceback with paths simplified
+    """
+    # Replace full paths with just filenames
+    # Pattern matches "/path/to/file.py" and keeps only "file.py"
+    sanitized = re.sub(r'/[^\s]+/([^/\s]+\.py)', r'\1', tb_string)
+    return sanitized
 
 
 def register_error_handlers(app):
@@ -37,11 +54,11 @@ def register_error_handlers(app):
     def server_error(e):
         """Handle server errors."""
         if app.debug:
-            # In debug mode, include traceback
+            # In debug mode, include sanitized traceback
             return jsonify({
                 'success': False,
                 'error': 'Internal server error',
-                'traceback': traceback.format_exc()
+                'traceback': sanitize_traceback(traceback.format_exc())
             }), 500
         else:
             # In production, hide details
@@ -54,13 +71,13 @@ def register_error_handlers(app):
     def handle_exception(e):
         """Handle uncaught exceptions."""
         if app.debug:
-            # In debug mode, include traceback
+            # In debug mode, include sanitized traceback
             traceback.print_exc()
             return jsonify({
                 'success': False,
                 'error': str(e),
                 'type': type(e).__name__,
-                'traceback': traceback.format_exc()
+                'traceback': sanitize_traceback(traceback.format_exc())
             }), 500
         else:
             # In production, log but don't expose

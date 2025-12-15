@@ -85,6 +85,12 @@ class Mixer:
         """
         Mix images using magnitude and phase components.
         
+        Note:
+            All images should already be resized to unified dimensions
+            via the upload process. This method includes fallback resizing
+            for safety, but it's recommended to ensure images are pre-resized
+            to avoid FFT component artifacts.
+        
         Returns:
             Complex FFT array
         """
@@ -98,7 +104,8 @@ class Mixer:
                 mag = fft_data['magnitude']
                 ph = fft_data['phase']
                 
-                # Resize if needed
+                # Fallback resize if shapes don't match (should not happen normally)
+                # Images are resized to unified dimensions during upload
                 if mag.shape != target_shape:
                     mag = cv2.resize(mag, (target_shape[1], target_shape[0]))
                     ph = cv2.resize(ph, (target_shape[1], target_shape[0]))
@@ -134,6 +141,12 @@ class Mixer:
         """
         Mix images using real and imaginary components.
         
+        Note:
+            All images should already be resized to unified dimensions
+            via the upload process. This method includes fallback resizing
+            for safety, but it's recommended to ensure images are pre-resized
+            to avoid FFT component artifacts.
+        
         Returns:
             Complex FFT array
         """
@@ -147,7 +160,8 @@ class Mixer:
                 real = fft_data['real']
                 imag = fft_data['imaginary']
                 
-                # Resize if needed
+                # Fallback resize if shapes don't match (should not happen normally)
+                # Images are resized to unified dimensions during upload
                 if real.shape != target_shape:
                     real = cv2.resize(real, (target_shape[1], target_shape[0]))
                     imag = cv2.resize(imag, (target_shape[1], target_shape[0]))
