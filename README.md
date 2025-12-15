@@ -73,11 +73,22 @@ A web application for exploring Fourier Transform components and mixing images b
 ### Running the Application
 
 1. **Start the Backend Server**
+   
+   **Option A: Refactored version (recommended):**
+   ```bash
+   cd backend
+   python app_refactored.py
+   ```
+   
+   **Option B: Original version:**
    ```bash
    cd backend
    python app.py
    ```
+   
    The backend will run on `http://localhost:5000`
+   
+   > Both versions are fully compatible with the frontend. See `BACKEND_STRUCTURE.md` for details on the refactored architecture.
 
 2. **Start the Frontend Development Server**
    ```bash
@@ -104,24 +115,37 @@ A web application for exploring Fourier Transform components and mixing images b
 
 ```
 DSP_Task4/
-├── backend/
-│   └── app.py              # Flask backend server
-├── frontend/
+├── backend/                    # Backend server (Flask + Python)
+│   ├── app.py                 # Original monolithic version
+│   ├── app_refactored.py      # ⭐ Refactored modular version
+│   ├── config.py              # Configuration management
+│   ├── api/                   # API routes (blueprints)
+│   ├── core/                  # Business logic modules
+│   ├── utils/                 # Utility functions
+│   ├── middleware/            # Middleware components
+│   ├── tests/                 # Test suite
+│   └── README.md              # Backend documentation
+├── frontend/                   # Frontend application (React + TypeScript)
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── layout/     # Header, Navigation components
-│   │   │   └── mixer/      # Viewport, Sidebar, Controls components
+│   │   │   ├── layout/        # Header, Navigation components
+│   │   │   └── mixer/         # Viewport, Sidebar, Controls components
 │   │   ├── styles/
-│   │   │   └── globals.css # Global styles with dark theme
-│   │   ├── App.tsx         # Main application component
-│   │   └── main.tsx        # Application entry point
+│   │   │   └── globals.css    # Global styles with dark theme
+│   │   ├── App.tsx            # Main application component
+│   │   └── main.tsx           # Application entry point
 │   ├── index.html
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── vite.config.ts
-├── project_specification.md
-└── README.md
+├── BACKEND_STRUCTURE.md       # Backend architecture documentation
+├── MIGRATION_GUIDE.md         # Backend migration guide
+├── REFACTORING_SUMMARY.md     # Refactoring summary
+├── project_specification.md   # Project requirements
+└── README.md                  # This file
 ```
+
+> **Note:** The backend has been refactored into a modular architecture. See `BACKEND_STRUCTURE.md` for details.
 
 ## License
 

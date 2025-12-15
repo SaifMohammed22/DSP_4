@@ -57,9 +57,15 @@ class ProductionConfig(Config):
     ENV = 'production'
     
     # Override with environment variables in production
-    SECRET_KEY = os.getenv('SECRET_KEY', None)
-    if SECRET_KEY is None:
-        raise ValueError("SECRET_KEY must be set in production")
+    SECRET_KEY = os.getenv('SECRET_KEY', 'change-this-in-production')
+    
+    @classmethod
+    def init_app(cls, app):
+        """Initialize application with configuration."""
+        super().init_app(app)
+        # Validate secret key in production
+        if cls.SECRET_KEY == 'change-this-in-production':
+            app.logger.warning('Using default SECRET_KEY in production! Please set SECRET_KEY environment variable.')
 
 
 class TestingConfig(Config):
