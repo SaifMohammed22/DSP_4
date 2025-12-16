@@ -22,7 +22,7 @@ const state = {
 };
 
 // API Base URL
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
