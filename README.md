@@ -33,8 +33,8 @@ A web application for exploring Fourier Transform components and mixing images b
 ## Tech Stack
 
 ### Frontend
-- React 18 with TypeScript
-- Vite for build tooling
+- Vanilla HTML, CSS, and JavaScript
+- Vite for build tooling and development server
 - CSS with CSS Variables for theming
 
 ### Backend
@@ -125,19 +125,14 @@ DSP_Task4/
 │   ├── middleware/            # Middleware components
 │   ├── tests/                 # Test suite
 │   └── README.md              # Backend documentation
-├── frontend/                   # Frontend application (React + TypeScript)
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── layout/        # Header, Navigation components
-│   │   │   └── mixer/         # Viewport, Sidebar, Controls components
-│   │   ├── styles/
-│   │   │   └── globals.css    # Global styles with dark theme
-│   │   ├── App.tsx            # Main application component
-│   │   └── main.tsx           # Application entry point
-│   ├── index.html
+├── frontend/                   # Frontend application (Vanilla JS)
+│   ├── js/
+│   │   └── app.js             # Main application logic
+│   ├── styles/
+│   │   └── main.css           # Global styles with dark theme
+│   ├── index.html             # Main HTML file
 │   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
+│   └── vite.config.js
 ├── BACKEND_STRUCTURE.md       # Backend architecture documentation
 ├── MIGRATION_GUIDE.md         # Backend migration guide
 ├── REFACTORING_SUMMARY.md     # Refactoring summary
