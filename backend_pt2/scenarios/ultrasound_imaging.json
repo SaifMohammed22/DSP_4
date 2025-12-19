@@ -1,0 +1,10 @@
+{
+    "name": "Ultrasound Imaging",
+    "num_elements": 128,
+    "frequency": 5000000.0,
+    "array_type": "Curved",
+    "beam_angle_range": [
+        -45,
+        45
+    ]
+}

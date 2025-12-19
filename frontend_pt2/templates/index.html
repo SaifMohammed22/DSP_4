@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Beamforming Simulator</title>
+    <link rel="stylesheet" href="/frontend/static/css/style.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎯 2D Beamforming Simulator</h1>
+            <p>Advanced Phased Array Visualization and Analysis</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <!-- Mode Selection -->
+                <div class="control-group">
+                    <h3>Mode Selection</h3>
+                    <select id="mode-select" class="control-input">
+                        <option value="transmitter">Transmitter</option>
+                        <option value="receiver">Receiver</option>
+                    </select>
+                </div>
+
+                <!-- Scenario Selection -->
+                <div class="control-group">
+                    <h3>Scenario</h3>
+                    <select id="scenario-select" class="control-input">
+                        <option value="">Select Scenario</option>
+                        <option value="5G Beamforming">5G Beamforming</option>
+                        <option value="Ultrasound Imaging">Ultrasound Imaging</option>
+                        <option value="Tumor Ablation">Tumor Ablation</option>
+                        <option value="Receiver Mode 5G">Receiver Mode 5G</option>
+                    </select>
+                    <div id="scenario-description" class="scenario-info"></div>
+                </div>
+
+                <!-- Array Configuration -->
+                <div class="control-group">
+                    <h3>Array Configuration</h3>
+                    
+                    <div class="control-item">
+                        <label for="num-elements">Number of Elements: <span id="num-elements-value">16</span></label>
+                        <input type="range" id="num-elements" min="2" max="128" value="16" class="slider">
+                    </div>
+
+                    <div class="control-item">
+                        <label for="element-spacing">Element Spacing (λ): <span id="element-spacing-value">0.5</span></label>
+                        <input type="range" id="element-spacing" min="0.1" max="2.0" step="0.1" value="0.5" class="slider">
+                    </div>
+
+                    <div class="control-item">
+                        <label for="frequency">Frequency: <span id="frequency-value">2.4 GHz</span></label>
+                        <input type="range" id="frequency" min="1" max="100" value="24" class="slider">
+                        <select id="frequency-unit" class="control-input small">
+                            <option value="1e6">MHz</option>
+                            <option value="1e9" selected>GHz</option>
+                        </select>
+                    </div>
+
+                    <div class="control-item">
+                        <label for="array-geometry">Array Geometry:</label>
+                        <select id="array-geometry" class="control-input">
+                            <option value="linear">Linear</option>
+                            <option value="curved">Curved</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Beam Steering -->
+                <div class="control-group">
+                    <h3>Beam Steering</h3>
+                    <div class="control-item">
+                        <label for="beam-angle">Beam Angle: <span id="beam-angle-value">0°</span></label>
+                        <input type="range" id="beam-angle" min="-90" max="90" value="0" class="slider">
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="control-group">
+                    <button id="update-btn" class="btn btn-primary">Update Visualization</button>
+                    <button id="reset-btn" class="btn btn-secondary">Reset to Defaults</button>
+                </div>
+
+                <!-- Array Elements Visualization -->
+                <div class="control-group">
+                    <h3>Array Elements</h3>
+                    <div id="array-elements-plot" class="small-plot"></div>
+                </div>
+            </div>
+
+            <!-- Visualization Panel -->
+            <div class="visualization-panel">
+                <!-- Interference Map -->
+                <div class="viz-section">
+                    <h3>Constructive/Destructive Interference Map</h3>
+                    <div id="interference-map" class="plot-container"></div>
+                    <div id="loading-interference" class="loading-indicator">Computing...</div>
+                </div>
+
+                <!-- Beam Profile -->
+                <div class="viz-section">
+                    <h3>Beam Profile (Polar)</h3>
+                    <div id="beam-profile" class="plot-container"></div>
+                    <div id="loading-beam" class="loading-indicator">Computing...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/frontend/static/js/main.js"></script>
+</body>
+</html>

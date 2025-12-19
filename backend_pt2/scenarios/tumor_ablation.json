@@ -1,0 +1,10 @@
+{
+    "name": "Tumor Ablation",
+    "num_elements": 32,
+    "frequency": 1000000.0,
+    "array_type": "Linear",
+    "beam_angle_range": [
+        -15,
+        15
+    ]
+}
