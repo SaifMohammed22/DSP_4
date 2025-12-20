@@ -12,6 +12,7 @@ from config import config
 from api.routes import main_bp
 from api.image_routes import image_bp
 from api.mixing_routes import mixing_bp
+from api.beamforming_routes import beamforming_bp
 from middleware.error_handlers import register_error_handlers
 
 
@@ -42,8 +43,9 @@ def create_app(config_name=None):
     
     # Register blueprints
     app.register_blueprint(main_bp)
-    app.register_blueprint(image_bp, url_prefix='/api')
-    app.register_blueprint(mixing_bp, url_prefix='/api')
+    app.register_blueprint(image_bp)
+    app.register_blueprint(mixing_bp)
+    app.register_blueprint(beamforming_bp)
     
     # Register error handlers
     register_error_handlers(app)
@@ -54,17 +56,6 @@ def create_app(config_name=None):
 if __name__ == '__main__':
     # Create application instance
     app = create_app('development')
-    
-    # Print startup information
-    # print("=" * 60)
-    # print("🎛️  FT Magnitude/Phase Mixer - Server Starting")
-    # print("=" * 60)
-    # print(f"📁 Configuration: {app.config['ENV']}")
-    # print(f"📁 Upload folder: {app.config['UPLOAD_FOLDER']}")
-    # print("=" * 60)
-    # print(f"🌐 Server running on: http://{app.config['HOST']}:{app.config['PORT']}")
-    # print("⏹️  Press CTRL+C to stop the server")
-    # print("=" * 60)
     
     # Run the application
     app.run(
