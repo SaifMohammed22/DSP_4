@@ -2,186 +2,68 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './BeamformingStyles.css';
 import BeamVisualization from './BeamVisualization';
 import BeamProfile from './BeamProfile';
-import ArrayControls from './ArrayControls';
-import ParameterControls from './ParameterControls';
-import ScenarioSelector from './ScenarioSelector';
 
 const API_BASE = 'http://localhost:5000/api';
 
 const BeamformingPage = () => {
-    // State
-    const [arrays, setArrays] = useState([
-        {
-            array_id: 'array_1',
-            num_elements: 16,
-            geometry: 'linear',
-            element_spacing: 0.5,
-            curvature_radius: 10,
-            beam_angle: 0,
-            position: [0, 0],
-            orientation: 0,
-            phase_shift: 0
-        }
-    ]);
-    const [selectedArrayId, setSelectedArrayId] = useState('array_1');
-    const [globalParams, setGlobalParams] = useState({
-        frequency: 2.4e9,
-        mode: 'transmitter',
-        grid_size: 400,
-        grid_range: 20
-    });
+    // Main state
+    const [numElements, setNumElements] = useState(8);
+    const [elementSpacing, setElementSpacing] = useState(0.5);
+    const [phaseShift, setPhaseShift] = useState(0);
+    const [frequency, setFrequency] = useState(5);
+    const [geometry, setGeometry] = useState('linear');
+    const [curvatureRadius, setCurvatureRadius] = useState(5);
+    const [mode, setMode] = useState('transmitter');
 
-    const [scenarios, setScenarios] = useState([]);
-    const [selectedScenario, setSelectedScenario] = useState('');
+    // Visualization data
     const [interferenceData, setInterferenceData] = useState(null);
     const [beamProfileData, setBeamProfileData] = useState(null);
-    const [arrayPositions, setArrayPositions] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Frequency UI state
-    const [frequencyValue, setFrequencyValue] = useState(24);
-    const [frequencyUnit, setFrequencyUnit] = useState('GHz');
+    // Scenarios
+    const [scenarios, setScenarios] = useState([]);
+    const [selectedScenario, setSelectedScenario] = useState('');
 
-    // Refs
+    // Debounce ref
     const updateTimeoutRef = useRef(null);
-    const isUpdatingRef = useRef(false);
-
-    // Update global frequency when UI changes
-    useEffect(() => {
-        const freq = frequencyValue * (frequencyUnit === 'MHz' ? 1e6 : 1e9);
-        setGlobalParams(prev => ({ ...prev, frequency: freq }));
-    }, [frequencyValue, frequencyUnit]);
 
     // Load scenarios
-    const loadScenarios = useCallback(async () => {
-        try {
-            const response = await fetch(`${API_BASE}/scenarios`);
-            const data = await response.json();
-            if (data.success) {
-                setScenarios(data.scenarios);
-            }
-        } catch (error) {
-            console.error('Error loading scenarios:', error);
-        }
+    useEffect(() => {
+        fetch(`${API_BASE}/scenarios`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) setScenarios(data.scenarios);
+            })
+            .catch(console.error);
     }, []);
 
-    // Load a specific scenario
-    const handleScenarioSelect = useCallback(async (scenarioName) => {
-        if (!scenarioName) return;
-
-        try {
-            setIsLoading(true);
-            const response = await fetch(`${API_BASE}/scenario/${encodeURIComponent(scenarioName)}`);
-            const data = await response.json();
-
-            if (data.success) {
-                const scenario = data.scenario;
-
-                // Handle legacy scenario format vs new format
-                let newArrays = [];
-                if (scenario.arrays) {
-                    newArrays = scenario.arrays;
-                } else {
-                    // Convert legacy single array to list
-                    newArrays = [{
-                        array_id: 'array_1',
-                        num_elements: scenario.num_elements || 16,
-                        geometry: scenario.array_type || 'linear',
-                        element_spacing: scenario.element_spacing || 0.5,
-                        curvature_radius: scenario.curvature_radius || 10,
-                        beam_angle: scenario.beam_angle || 0,
-                        position: [0, 0],
-                        orientation: 0
-                    }];
-                }
-
-                setArrays(newArrays);
-                setSelectedArrayId(newArrays[0]?.array_id || null);
-
-                // Update global params
-                setGlobalParams(prev => ({
-                    ...prev,
-                    frequency: scenario.frequency || prev.frequency,
-                    mode: scenario.mode || prev.mode,
-                    grid_range: scenario.grid_range || prev.grid_range
-                }));
-
-                // Update frequency UI
-                const freq = scenario.frequency || 2.4e9;
-                if (freq >= 1e9) {
-                    setFrequencyUnit('GHz');
-                    setFrequencyValue(freq / 1e9);
-                } else {
-                    setFrequencyUnit('MHz');
-                    setFrequencyValue(freq / 1e6);
-                }
-
-                setSelectedScenario(scenarioName);
-            }
-        } catch (error) {
-            console.error('Error loading scenario:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    // Array Management
-    const handleAddArray = () => {
-        const newArrayId = `array_${Date.now()}`;
-        const newArray = {
-            array_id: newArrayId,
-            num_elements: 16,
-            geometry: 'linear',
-            element_spacing: 0.5,
-            curvature_radius: 10,
-            beam_angle: 0,
-            position: [0, 0],
-            orientation: 0,
-            phase_shift: 0
-        };
-        setArrays([...arrays, newArray]);
-        setSelectedArrayId(newArrayId);
-    };
-
-    const handleDeleteArray = (arrayId) => {
-        if (arrays.length <= 1) return; // Prevent deleting last array
-        const newArrays = arrays.filter(a => a.array_id !== arrayId);
-        setArrays(newArrays);
-        if (selectedArrayId === arrayId) {
-            setSelectedArrayId(newArrays[0].array_id);
-        }
-    };
-
-    const handleUpdateArray = (updates) => {
-        setArrays(prevArrays => prevArrays.map(arr =>
-            arr.array_id === selectedArrayId ? { ...arr, ...updates } : arr
-        ));
-    };
-
-    // Visualization Update
+    // Update visualization
     const updateVisualization = useCallback(async () => {
-        if (isUpdatingRef.current) return;
-
         if (updateTimeoutRef.current) {
             clearTimeout(updateTimeoutRef.current);
         }
 
-        updateTimeoutRef.current = window.setTimeout(async () => {
-            isUpdatingRef.current = true;
+        updateTimeoutRef.current = setTimeout(async () => {
             setIsLoading(true);
 
-            try {
-                const payload = {
-                    ...globalParams,
-                    arrays: arrays
-                };
+            const payload = {
+                frequency,
+                mode,
+                grid_size: 300,
+                grid_range: 20,
+                arrays: [{
+                    num_elements: numElements,
+                    element_spacing: elementSpacing,
+                    geometry,
+                    curvature_radius: curvatureRadius,
+                    position: [0, 0],
+                    orientation: 0,
+                    phase_shift: phaseShift
+                }]
+            };
 
-                const [arrayRes, interferenceRes, profileRes] = await Promise.all([
-                    fetch(`${API_BASE}/compute_array_positions`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    }),
+            try {
+                const [interferenceRes, profileRes] = await Promise.all([
                     fetch(`${API_BASE}/compute_interference`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -194,38 +76,55 @@ const BeamformingPage = () => {
                     })
                 ]);
 
-                const arrayData = await arrayRes.json();
-                const interferenceData = await interferenceRes.json();
-                const profileData = await profileRes.json();
+                const interferenceJson = await interferenceRes.json();
+                const profileJson = await profileRes.json();
 
-                if (arrayData.success) setArrayPositions(arrayData.data);
-                if (interferenceData.success) setInterferenceData(interferenceData.data);
-                if (profileData.success) setBeamProfileData(profileData.data);
+                if (interferenceJson.success) setInterferenceData(interferenceJson.data);
+                if (profileJson.success) setBeamProfileData(profileJson.data);
             } catch (error) {
                 console.error('Error updating visualization:', error);
             } finally {
                 setIsLoading(false);
-                isUpdatingRef.current = false;
             }
-        }, 150); // Small debounce
-    }, [arrays, globalParams]);
+        }, 100);
+    }, [numElements, elementSpacing, phaseShift, frequency, geometry, curvatureRadius, mode]);
 
-    // Initial load
-    useEffect(() => {
-        loadScenarios();
-        // Initial visualization update is triggered by effect below
-    }, [loadScenarios]);
-
-    // Update when state changes
+    // Trigger updates
     useEffect(() => {
         updateVisualization();
     }, [updateVisualization]);
 
-    // Prepare field data
+    // Load scenario
+    const loadScenario = async (scenarioId) => {
+        if (!scenarioId) return;
+        setSelectedScenario(scenarioId);
+
+        try {
+            const res = await fetch(`${API_BASE}/scenario/${scenarioId}`);
+            const data = await res.json();
+
+            if (data.success && data.scenario) {
+                const s = data.scenario;
+                const arr = s.arrays?.[0] || {};
+
+                setNumElements(arr.num_elements || 8);
+                setElementSpacing(arr.element_spacing || 0.5);
+                setPhaseShift(arr.phase_shift || 0);
+                setFrequency(s.frequency || 5);
+                setGeometry(arr.geometry || 'linear');
+                setCurvatureRadius(arr.curvature_radius || 5);
+                setMode(s.mode || 'transmitter');
+            }
+        } catch (error) {
+            console.error('Error loading scenario:', error);
+        }
+    };
+
+    // Prepare field data for visualization
     const fieldData = interferenceData ? {
         intensity: interferenceData.interference,
-        x_coords: interferenceData.x_grid[0] || [],
-        y_coords: interferenceData.y_grid.map(row => row[0]) || [],
+        x_coords: interferenceData.x_grid?.[0] || [],
+        y_coords: interferenceData.y_grid?.map(row => row[0]) || [],
         element_positions: interferenceData.positions,
         beam_profile: beamProfileData ? {
             angles: beamProfileData.angles,
@@ -233,97 +132,152 @@ const BeamformingPage = () => {
         } : undefined
     } : null;
 
-    const selectedArray = arrays.find(a => a.array_id === selectedArrayId) || arrays[0];
-
     return (
-        <div className="beamforming-page">
+        <div className="beamforming-container">
             {/* Control Panel */}
-            <div className="beamforming-controls">
-
-                {/* Global Settings */}
-                <div className="control-section">
-                    <div className="section-header">
-                        <h3>Global Settings</h3>
-                    </div>
-                    <div className="section-content">
-                        <div className="parameter-group">
-                            <div className="parameter-label">
-                                <span>Frequency: {frequencyValue} {frequencyUnit}</span>
-                            </div>
-                            <div className="slider-row">
-                                <input
-                                    type="range"
-                                    className="parameter-slider"
-                                    min="1"
-                                    max="100"
-                                    value={frequencyValue}
-                                    onChange={(e) => setFrequencyValue(parseInt(e.target.value))}
-                                />
-                                <select
-                                    value={frequencyUnit}
-                                    onChange={(e) => setFrequencyUnit(e.target.value)}
-                                    className="control-select frequency-unit"
-                                >
-                                    <option value="MHz">MHz</option>
-                                    <option value="GHz">GHz</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="parameter-group" style={{ marginTop: '12px' }}>
-                            <label className="parameter-label">Mode</label>
-                            <select
-                                value={globalParams.mode}
-                                onChange={(e) => setGlobalParams(prev => ({ ...prev, mode: e.target.value }))}
-                                className="control-select"
-                            >
-                                <option value="transmitter">Transmitter</option>
-                                <option value="receiver">Receiver</option>
-                            </select>
-                        </div>
+            <div className="control-panel">
+                {/* Mode Toggle */}
+                <div className="control-group">
+                    <label>Mode</label>
+                    <div className="toggle-group">
+                        <button
+                            className={mode === 'transmitter' ? 'active' : ''}
+                            onClick={() => setMode('transmitter')}
+                        >
+                            Transmitting
+                        </button>
+                        <button
+                            className={mode === 'receiver' ? 'active' : ''}
+                            onClick={() => setMode('receiver')}
+                        >
+                            Receiving
+                        </button>
                     </div>
                 </div>
 
-                <ScenarioSelector
-                    scenarios={scenarios}
-                    activeScenario={selectedScenario}
-                    onSelect={handleScenarioSelect}
-                    isLoading={isLoading}
-                />
+                {/* Number of Elements */}
+                <div className="control-group">
+                    <label>Number of Elements: <span className="value">{numElements}</span></label>
+                    <div className="stepper">
+                        <button onClick={() => setNumElements(Math.max(2, numElements - 1))}>−</button>
+                        <input
+                            type="range"
+                            min="2"
+                            max="64"
+                            value={numElements}
+                            onChange={(e) => setNumElements(parseInt(e.target.value))}
+                        />
+                        <button onClick={() => setNumElements(Math.min(64, numElements + 1))}>+</button>
+                    </div>
+                </div>
 
-                <ArrayControls
-                    arrays={arrays}
-                    selectedArrayId={selectedArrayId}
-                    onSelectArray={setSelectedArrayId}
-                    onAddArray={handleAddArray}
-                    onDeleteArray={handleDeleteArray}
-                />
-
-                {selectedArray && (
-                    <ParameterControls
-                        array={selectedArray}
-                        onUpdateArray={handleUpdateArray}
-                        isLoading={isLoading}
+                {/* Phase Shift */}
+                <div className="control-group">
+                    <label>Phase Shift: <span className="value">{(phaseShift / Math.PI).toFixed(2)}π</span></label>
+                    <input
+                        type="range"
+                        min={-Math.PI}
+                        max={Math.PI}
+                        step={0.01}
+                        value={phaseShift}
+                        onChange={(e) => setPhaseShift(parseFloat(e.target.value))}
                     />
+                </div>
+
+                {/* Frequency */}
+                <div className="control-group">
+                    <label>Frequency: <span className="value">{frequency}</span></label>
+                    <input
+                        type="range"
+                        min="1"
+                        max="20"
+                        value={frequency}
+                        onChange={(e) => setFrequency(parseInt(e.target.value))}
+                    />
+                </div>
+
+                {/* Element Spacing */}
+                <div className="control-group">
+                    <label>Element Spacing: <span className="value">{elementSpacing.toFixed(2)}λ</span></label>
+                    <input
+                        type="range"
+                        min="0.1"
+                        max="2"
+                        step="0.05"
+                        value={elementSpacing}
+                        onChange={(e) => setElementSpacing(parseFloat(e.target.value))}
+                    />
+                </div>
+
+                {/* Geometry */}
+                <div className="control-group">
+                    <label>Array Geometry</label>
+                    <div className="toggle-group">
+                        <button
+                            className={geometry === 'linear' ? 'active' : ''}
+                            onClick={() => setGeometry('linear')}
+                        >
+                            Linear
+                        </button>
+                        <button
+                            className={geometry === 'curved' ? 'active' : ''}
+                            onClick={() => setGeometry('curved')}
+                        >
+                            Curved
+                        </button>
+                    </div>
+                </div>
+
+                {/* Curvature Radius (shown only for curved) */}
+                {geometry === 'curved' && (
+                    <div className="control-group">
+                        <label>Curvature Radius: <span className="value">{curvatureRadius}</span></label>
+                        <input
+                            type="range"
+                            min="1"
+                            max="20"
+                            value={curvatureRadius}
+                            onChange={(e) => setCurvatureRadius(parseInt(e.target.value))}
+                        />
+                    </div>
                 )}
+
+                {/* Scenarios */}
+                <div className="control-group scenarios">
+                    <label>Load Scenario</label>
+                    <div className="scenario-buttons">
+                        {scenarios.map(s => (
+                            <button
+                                key={s.id}
+                                className={selectedScenario === s.id ? 'active' : ''}
+                                onClick={() => loadScenario(s.id)}
+                                title={s.description}
+                            >
+                                {s.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Visualization Panel */}
             <div className="visualization-panel">
-                <div className="viz-section">
-                    <h3>Constructive/Destructive Interference Map</h3>
-                    <div className="plot-container">
+                <div className="viz-box">
+                    <div className="viz-title">Constructive/Destructive Interference Map</div>
+                    <div className="viz-content">
                         <BeamVisualization fieldData={fieldData} isLoading={isLoading} />
                     </div>
                 </div>
-
-                <div className="viz-section">
-                    <h3>Beam Profile (Polar)</h3>
-                    <div className="plot-container">
+                <div className="viz-box">
+                    <div className="viz-title">Beam Profile</div>
+                    <div className="viz-content">
                         <BeamProfile fieldData={fieldData} isLoading={isLoading} />
                     </div>
                 </div>
             </div>
+
+            {/* Loading indicator */}
+            {isLoading && <div className="global-loading">Updating...</div>}
         </div>
     );
 };

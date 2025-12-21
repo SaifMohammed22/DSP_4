@@ -1,200 +1,126 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 
-const BeamProfile = ({
-    fieldData,
-    isLoading
-}) => {
+const BeamProfile = ({ fieldData, isLoading }) => {
     const canvasRef = useRef(null);
 
-    // Draw the beam profile
     const drawProfile = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        // Set canvas size to match container
         const container = canvas.parentElement;
         if (container) {
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
         }
 
-        // Clear canvas
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear
         ctx.fillStyle = '#0a0a0f';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Check if we have beam profile data
-        if (fieldData?.beam_profile) {
-            const { angles, intensity } = fieldData.beam_profile;
-            drawProfileChart(ctx, canvas.width, canvas.height, intensity, angles);
-        } else if (fieldData?.intensity && fieldData.intensity.length > 0) {
-            // If no explicit beam_profile, create one from the intensity data
-            // Take a horizontal slice at the center
-            const rows = fieldData.intensity.length;
-            const centerRow = Math.floor(rows / 2);
-            const profileData = fieldData.intensity[centerRow];
+        // Check for beam profile data
+        const profile = fieldData?.beam_profile;
+        if (!profile?.angles || !profile?.intensity) return;
 
-            drawProfileChart(ctx, canvas.width, canvas.height, profileData);
-        } else {
-            // No data to display
-            return;
-        }
-    }, [fieldData]);
+        const { angles, intensity } = profile;
+        if (angles.length === 0) return;
 
-    // Draw the profile chart
-    const drawProfileChart = (
-        ctx,
-        width,
-        height,
-        data,
-        angles
-    ) => {
-        const padding = { top: 30, right: 20, bottom: 40, left: 50 };
-        const chartWidth = width - padding.left - padding.right;
-        const chartHeight = height - padding.top - padding.bottom;
+        // Center and radius for polar plot
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height - 40;  // Near bottom
+        const maxRadius = Math.min(canvas.width / 2 - 40, canvas.height - 80);
 
-        // Find min and max
-        let minVal = Infinity;
-        let maxVal = -Infinity;
-        for (const val of data) {
-            if (val < minVal) minVal = val;
-            if (val > maxVal) maxVal = val;
-        }
-        const range = maxVal - minVal || 1;
-
-        // Draw grid
+        // Draw grid circles
         ctx.strokeStyle = '#1e1e28';
         ctx.lineWidth = 1;
 
-        // Horizontal grid lines
-        for (let i = 0; i <= 4; i++) {
-            const y = padding.top + (i / 4) * chartHeight;
+        for (let r = 0.25; r <= 1; r += 0.25) {
             ctx.beginPath();
-            ctx.moveTo(padding.left, y);
-            ctx.lineTo(width - padding.right, y);
+            ctx.arc(centerX, centerY, maxRadius * r, Math.PI, 0);
             ctx.stroke();
         }
 
-        // Vertical grid lines
-        for (let i = 0; i <= 6; i++) {
-            const x = padding.left + (i / 6) * chartWidth;
+        // Draw angle lines
+        for (let deg = -90; deg <= 90; deg += 30) {
+            const rad = (deg * Math.PI) / 180;
             ctx.beginPath();
-            ctx.moveTo(x, padding.top);
-            ctx.lineTo(x, height - padding.bottom);
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(
+                centerX + maxRadius * Math.cos(rad - Math.PI / 2),
+                centerY + maxRadius * Math.sin(rad - Math.PI / 2)
+            );
             ctx.stroke();
         }
 
-        // Draw axes
-        ctx.strokeStyle = '#3e3e4a';
-        ctx.lineWidth = 1;
-
-        // Y axis
+        // Draw baseline
         ctx.beginPath();
-        ctx.moveTo(padding.left, padding.top);
-        ctx.lineTo(padding.left, height - padding.bottom);
+        ctx.moveTo(centerX - maxRadius, centerY);
+        ctx.lineTo(centerX + maxRadius, centerY);
         ctx.stroke();
 
-        // X axis
-        ctx.beginPath();
-        ctx.moveTo(padding.left, height - padding.bottom);
-        ctx.lineTo(width - padding.right, height - padding.bottom);
-        ctx.stroke();
+        // Draw angle labels
+        ctx.fillStyle = '#808090';
+        ctx.font = '11px system-ui';
+        ctx.textAlign = 'center';
 
-        // Draw the profile line
+        [-90, -60, -30, 0, 30, 60, 90].forEach(deg => {
+            const rad = (deg * Math.PI) / 180;
+            const labelRadius = maxRadius + 18;
+            const x = centerX + labelRadius * Math.cos(rad - Math.PI / 2);
+            const y = centerY + labelRadius * Math.sin(rad - Math.PI / 2);
+            ctx.fillText(`${deg}°`, x, y + 4);
+        });
+
+        // Draw beam pattern
         ctx.beginPath();
         ctx.strokeStyle = '#6366f1';
         ctx.lineWidth = 2;
 
-        for (let i = 0; i < data.length; i++) {
-            const x = padding.left + (i / (data.length - 1)) * chartWidth;
-            const normalized = (data[i] - minVal) / range;
-            const y = padding.top + (1 - normalized) * chartHeight;
+        let firstPoint = true;
+        for (let i = 0; i < angles.length; i++) {
+            const deg = angles[i];
+            // Only show front hemisphere (-90 to 90)
+            if (deg < -90 || deg > 90) continue;
 
-            if (i === 0) {
+            const rad = (deg * Math.PI) / 180;
+            const r = intensity[i] * maxRadius;
+
+            const x = centerX + r * Math.cos(rad - Math.PI / 2);
+            const y = centerY + r * Math.sin(rad - Math.PI / 2);
+
+            if (firstPoint) {
                 ctx.moveTo(x, y);
+                firstPoint = false;
             } else {
                 ctx.lineTo(x, y);
             }
         }
         ctx.stroke();
 
-        // Draw fill under the curve
-        ctx.lineTo(padding.left + chartWidth, height - padding.bottom);
-        ctx.lineTo(padding.left, height - padding.bottom);
+        // Fill under curve
+        ctx.lineTo(centerX, centerY);
         ctx.closePath();
 
-        const gradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
+        const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius);
         gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
         gradient.addColorStop(1, 'rgba(99, 102, 241, 0.05)');
         ctx.fillStyle = gradient;
         ctx.fill();
 
-        // Draw labels
-        ctx.fillStyle = '#8b8b99';
-        ctx.font = '11px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
+        // Draw center point
+        ctx.beginPath();
+        ctx.fillStyle = '#6366f1';
+        ctx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+        ctx.fill();
 
-        // X axis labels
-        if (angles && angles.length > 0) {
-            const xLabels = [
-                angles[0].toFixed(0) + '°',
-                angles[Math.floor(angles.length / 2)].toFixed(0) + '°',
-                angles[angles.length - 1].toFixed(0) + '°'
-            ];
-            const xPositions = [0, 0.5, 1];
+    }, [fieldData]);
 
-            xPositions.forEach((pos, i) => {
-                const x = padding.left + pos * chartWidth;
-                ctx.fillText(xLabels[i], x, height - padding.bottom + 20);
-            });
-        } else {
-            // Use position indices
-            const xLabels = ['0', Math.floor(data.length / 2).toString(), data.length.toString()];
-            const xPositions = [0, 0.5, 1];
-
-            xPositions.forEach((pos, i) => {
-                const x = padding.left + pos * chartWidth;
-                ctx.fillText(xLabels[i], x, height - padding.bottom + 20);
-            });
-        }
-
-        // Y axis labels
-        ctx.textAlign = 'right';
-        for (let i = 0; i <= 4; i++) {
-            const val = minVal + ((4 - i) / 4) * range;
-            const y = padding.top + (i / 4) * chartHeight;
-            ctx.fillText(val.toFixed(1), padding.left - 8, y + 4);
-        }
-
-        // Axis titles
-        ctx.fillStyle = '#a0a0b0';
-        ctx.font = '12px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Position', width / 2, height - 8);
-
-        ctx.save();
-        ctx.translate(14, height / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillText('Intensity', 0, 0);
-        ctx.restore();
-
-        // Title
-        ctx.fillStyle = '#e0e0e8';
-        ctx.font = '13px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Beam Profile (Center Slice)', width / 2, 18);
-    };
-
-    // Redraw on data change or resize
     useEffect(() => {
         drawProfile();
 
-        const handleResize = () => {
-            drawProfile();
-        };
-
+        const handleResize = () => drawProfile();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, [drawProfile]);
@@ -203,21 +129,20 @@ const BeamProfile = ({
         <>
             <canvas ref={canvasRef} className="viz-canvas" />
 
-            {/* Loading overlay */}
             {isLoading && (
                 <div className="loading-overlay">
                     <div className="loading-spinner" />
-                    <span className="loading-text">Computing profile...</span>
+                    <span className="loading-text">Computing...</span>
                 </div>
             )}
 
-            {/* Placeholder when no data */}
-            {!fieldData && !isLoading && (
+            {!fieldData?.beam_profile && !isLoading && (
                 <div className="viz-placeholder">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 2a10 10 0 0 1 0 20" />
                     </svg>
-                    <p>Beam profile will appear here after computing</p>
+                    <p>Beam profile</p>
                 </div>
             )}
         </>

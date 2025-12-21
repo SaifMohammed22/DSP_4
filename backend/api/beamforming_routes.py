@@ -110,9 +110,9 @@ def compute_beam_profile():
         return jsonify({
             'success': True,
             'data': {
-                'angles': result['angles'].tolist(),
-                'magnitude': result['magnitude'].tolist(),
-                'magnitude_db': result['magnitude_db'].tolist()
+                'angles': result['angles'] if isinstance(result['angles'], list) else result['angles'].tolist(),
+                'magnitude': result['magnitude'] if isinstance(result['magnitude'], list) else result['magnitude'].tolist(),
+                'magnitude_db': result['magnitude_db'] if isinstance(result['magnitude_db'], list) else result['magnitude_db'].tolist()
             }
         })
     except Exception as e:

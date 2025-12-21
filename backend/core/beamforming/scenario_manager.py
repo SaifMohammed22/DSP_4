@@ -153,7 +153,7 @@ class ScenarioManager:
         Get list of all available scenarios
         
         Returns:
-            List of scenario dictionaries
+            List of scenario dictionaries with id, name, description
         """
         scenarios = []
         
@@ -168,10 +168,13 @@ class ScenarioManager:
                         with open(filepath, 'r') as f:
                             scenario = json.load(f)
                         
+                        # Get ID from scenario or derive from filename
+                        scenario_id = scenario.get('id', filename[:-5])
+                        
                         scenario_info = {
+                            'id': scenario_id,
                             'name': scenario.get('name', filename[:-5]),
-                            'description': scenario.get('description', ''),
-                            'application': scenario.get('application', '')
+                            'description': scenario.get('description', scenario.get('application', '')),
                         }
                         scenarios.append(scenario_info)
                         
