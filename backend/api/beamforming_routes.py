@@ -73,6 +73,7 @@ def compute_interference():
             'success': True,
             'data': {
                 'interference': result['interference'].tolist(),
+                'intensity': result['intensity'].tolist(),
                 'x_grid': result['X'].tolist(),
                 'y_grid': result['Y'].tolist(),
                 'positions': result['positions'].tolist()

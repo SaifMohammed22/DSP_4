@@ -12,7 +12,6 @@ from config import config
 from api.routes import main_bp
 from api.image_routes import image_bp
 from api.mixing_routes import mixing_bp
-from api.beamforming_routes import beamforming_bp
 from middleware.error_handlers import register_error_handlers
 
 
@@ -45,7 +44,6 @@ def create_app(config_name=None):
     app.register_blueprint(main_bp)
     app.register_blueprint(image_bp)
     app.register_blueprint(mixing_bp)
-    app.register_blueprint(beamforming_bp)
     
     # Register error handlers
     register_error_handlers(app)

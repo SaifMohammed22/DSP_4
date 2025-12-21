@@ -3,7 +3,7 @@ import './BeamformingStyles.css';
 import BeamVisualization from './BeamVisualization';
 import BeamProfile from './BeamProfile';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://localhost:5001/api';
 
 const BeamformingPage = () => {
     // Main state
@@ -122,7 +122,8 @@ const BeamformingPage = () => {
 
     // Prepare field data for visualization
     const fieldData = interferenceData ? {
-        intensity: interferenceData.interference,
+        interference: interferenceData.interference,
+        intensity: interferenceData.intensity,
         x_coords: interferenceData.x_grid?.[0] || [],
         y_coords: interferenceData.y_grid?.map(row => row[0]) || [],
         element_positions: interferenceData.positions,

@@ -1003,6 +1003,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
+  /* Restrict selection box visually to image area */
 }
 
 /* Corner handles for potential future resize */

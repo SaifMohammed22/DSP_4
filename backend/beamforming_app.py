@@ -1,59 +1,44 @@
 """
-Beamforming Simulator Application - Separate Entry Point
-Digital Signal Processing Lab - Part B: Beamforming Simulator
+Beamforming Simulator Application - Part 2
+Digital Signal Processing Lab - Part 2: Beamforming Simulator
 
-This runs on port 5001, separate from the FT Mixer (port 5000).
+This app runs the Beamforming Simulator API on port 5001.
 """
 from flask import Flask, jsonify
 from flask_cors import CORS
 import os
-import traceback
+from middleware.error_handlers import register_error_handlers
 
 from api.beamforming_routes import beamforming_bp
+from config import config
 
 
-def create_beamforming_app():
+def create_beamforming_app(config_name=None):
     """
-    Application factory for beamforming simulator.
+    Application factory for Part 2: Beamforming simulator.
     
     Returns:
         Configured Flask application instance for beamforming
     """
-    # Create Flask application
+    if config_name is None:
+        config_name = os.getenv('FLASK_ENV', 'development')
     app = Flask(__name__)
-    
-    # Configure
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'beamforming-dev-key')
-    app.config['DEBUG'] = True
-    
-    # Enable CORS for all origins in development
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
-    
-    # Register beamforming blueprint
+    app.config.from_object(config[config_name])
+    config[config_name].init_app(app)
+    CORS(app, origins=app.config['CORS_ORIGINS'])
     app.register_blueprint(beamforming_bp)
-    
-    # Add error handlers
-    @app.errorhandler(404)
-    def not_found(error):
-        return jsonify({'success': False, 'error': 'Endpoint not found'}), 404
-    
-    @app.errorhandler(500)
-    def internal_error(error):
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(error)}), 500
-    
-    @app.errorhandler(Exception)
-    def handle_exception(error):
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(error)}), 500
-    
+    register_error_handlers(app)
     return app
 
 
 if __name__ == '__main__':
-    app = create_beamforming_app()
+    app = create_beamforming_app('development')
     print("=" * 50)
-    print("Beamforming Simulator API")
+    print("Beamforming Simulator API - Part 2")
     print("Running on http://localhost:5001")
     print("=" * 50)
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(
+        debug=app.config['DEBUG'],
+        host=app.config['HOST'],
+        port=app.config['PORT']
+    )

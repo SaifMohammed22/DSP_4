@@ -1,5 +1,6 @@
 import React from 'react'
 
+// Navigation tabs component
 const NavigationTabs = ({ activeTab, onTabChange }) => {
     return (
         <nav className="navigation-tabs">

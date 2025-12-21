@@ -16,6 +16,7 @@ function App() {
     ])
 
     const [mixerSettings, setMixerSettings] = useState({
+        //initial weights for each component
         componentWeights: { 1: 25, 2: 25, 3: 25, 4: 25 },
         selectedComponent: 'magnitude',
         regionType: 'full',

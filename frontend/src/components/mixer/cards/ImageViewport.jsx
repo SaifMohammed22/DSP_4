@@ -18,10 +18,21 @@ const ImageViewport = ({ image, unifiedRoi, onUpload, onBrightnessContrastChange
     const handleRoiMouseDown = useCallback((e) => {
         if (!image.file || e.button !== 0 || e.ctrlKey) return
 
+        // Prevent conflict with select menu and other interactive elements
+        if (e.target.closest('.panel-label-row') || e.target.tagName === 'SELECT') return
+
         const imgElement = ftContainerRef.current?.querySelector('img')
         if (!imgElement) return
 
         const rect = imgElement.getBoundingClientRect()
+
+        // Ensure the initial click is actually within the image area
+        if (e.clientX < rect.left || e.clientX > rect.right ||
+            e.clientY < rect.top || e.clientY > rect.bottom) {
+            // Unless we are clicking a handle, ignore
+            if (!e.target.classList.contains('resize-handle')) return
+        }
+
         const x = ((e.clientX - rect.left) / rect.width) * 100
         const y = ((e.clientY - rect.top) / rect.height) * 100
 

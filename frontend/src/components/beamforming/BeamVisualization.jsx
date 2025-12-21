@@ -2,17 +2,42 @@ import React, { useRef, useEffect, useCallback } from 'react';
 
 const BeamVisualization = ({ fieldData, isLoading }) => {
     const canvasRef = useRef(null);
+    const [viewMode, setViewMode] = React.useState('intensity'); // Default to intensity for clearer beam
 
-    // Red-Blue interference colormap (like reference app)
-    const getColor = useCallback((value) => {
-        // value is 0 to 1, normalized
-        // 0 = blue (destructive), 0.5 = middle, 1 = red (constructive)
+    // Diverging Red-Blue for interference
+    const getInterferenceColor = useCallback((value) => {
+        const v = Math.max(0, Math.min(1, value));
+        // Diverging: blue at 0, black/dark at 0.5, red at 1
+        if (v < 0.5) {
+            // Map 0 -> 0.5 to Blue -> Dark
+            const factor = v * 2;
+            return [0, 0, Math.floor(255 * (1 - factor))];
+        } else {
+            // Map 0.5 -> 1 to Dark -> Red
+            const factor = (v - 0.5) * 2;
+            return [Math.floor(255 * factor), 0, 0];
+        }
+    }, []);
+
+    // Heat colormap for Intensity (Black -> Orange -> Yellow -> White)
+    const getIntensityColor = useCallback((value) => {
         const v = Math.max(0, Math.min(1, value));
 
-        // Simple red-blue diverging: blue at low, red at high
-        const r = Math.floor(255 * v);
-        const g = 0;
-        const b = Math.floor(255 * (1 - v));
+        let r = 0, g = 0, b = 0;
+
+        if (v < 0.33) {
+            // Black to Red
+            r = Math.floor((v / 0.33) * 255);
+        } else if (v < 0.66) {
+            // Red to Orange/Yellow
+            r = 255;
+            g = Math.floor(((v - 0.33) / 0.33) * 200);
+        } else {
+            // Yellow to White
+            r = 255;
+            g = 200 + Math.floor(((v - 0.66) / 0.34) * 55);
+            b = Math.floor(((v - 0.66) / 0.34) * 255);
+        }
 
         return [r, g, b];
     }, []);
@@ -30,20 +55,16 @@ const BeamVisualization = ({ fieldData, isLoading }) => {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Clear with dark background
         ctx.fillStyle = '#0a0a0f';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        if (!fieldData?.intensity) return;
+        const data = viewMode === 'interference' ? fieldData?.interference : fieldData?.intensity;
+        if (!data || !Array.isArray(data) || data.length === 0) return;
 
-        const { intensity } = fieldData;
-        if (!Array.isArray(intensity) || intensity.length === 0) return;
-
-        const rows = intensity.length;
-        const cols = intensity[0]?.length || 0;
+        const rows = data.length;
+        const cols = data[0]?.length || 0;
         if (cols === 0) return;
 
-        // Create off-screen canvas for the heatmap
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = cols;
         tempCanvas.height = rows;
@@ -52,11 +73,10 @@ const BeamVisualization = ({ fieldData, isLoading }) => {
 
         const imageData = tempCtx.createImageData(cols, rows);
 
-        // Fill image data
         for (let i = 0; i < rows; i++) {
             for (let j = 0; j < cols; j++) {
-                const val = intensity[i][j];
-                const [r, g, b] = getColor(val);
+                const val = data[i][j];
+                const [r, g, b] = viewMode === 'interference' ? getInterferenceColor(val) : getIntensityColor(val);
                 const idx = (i * cols + j) * 4;
                 imageData.data[idx] = r;
                 imageData.data[idx + 1] = g;
@@ -67,7 +87,6 @@ const BeamVisualization = ({ fieldData, isLoading }) => {
 
         tempCtx.putImageData(imageData, 0, 0);
 
-        // Calculate drawing dimensions maintaining aspect ratio
         const dataAspect = cols / rows;
         const canvasAspect = canvas.width / canvas.height;
 
@@ -85,11 +104,10 @@ const BeamVisualization = ({ fieldData, isLoading }) => {
             drawY = (canvas.height - drawHeight) / 2;
         }
 
-        // Draw scaled heatmap
         ctx.imageSmoothingEnabled = true;
         ctx.drawImage(tempCanvas, drawX, drawY, drawWidth, drawHeight);
 
-        // Draw element positions as green dots
+        // Draw element positions
         if (fieldData.element_positions && fieldData.x_coords && fieldData.y_coords) {
             const xMin = fieldData.x_coords[0];
             const xMax = fieldData.x_coords[fieldData.x_coords.length - 1];
@@ -98,9 +116,9 @@ const BeamVisualization = ({ fieldData, isLoading }) => {
             const xRange = xMax - xMin || 1;
             const yRange = yMax - yMin || 1;
 
-            ctx.fillStyle = '#00ff00';
+            ctx.fillStyle = '#10b981'; // Emerald
             ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1;
 
             fieldData.element_positions.forEach(pos => {
                 const [ex, ey] = pos;
@@ -108,51 +126,59 @@ const BeamVisualization = ({ fieldData, isLoading }) => {
                 const py = drawY + ((ey - yMin) / yRange) * drawHeight;
 
                 ctx.beginPath();
-                ctx.arc(px, py, 5, 0, Math.PI * 2);
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
             });
         }
-    }, [fieldData, getColor]);
+    }, [fieldData, viewMode, getInterferenceColor, getIntensityColor]);
 
     useEffect(() => {
         drawField();
-
         const handleResize = () => drawField();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, [drawField]);
 
     return (
-        <>
+        <div className="viz-container-inner">
+            <div className="viz-controls">
+                <button
+                    className={viewMode === 'intensity' ? 'active' : ''}
+                    onClick={() => setViewMode('intensity')}
+                >
+                    Beam Intensity
+                </button>
+                <button
+                    className={viewMode === 'interference' ? 'active' : ''}
+                    onClick={() => setViewMode('interference')}
+                >
+                    Wave Phase
+                </button>
+            </div>
+
             <canvas ref={canvasRef} className="viz-canvas" />
 
-            {/* Color scale legend */}
-            <div className="color-scale">
+            <div className={`color-scale ${viewMode}`}>
                 <div className="color-gradient" />
-            </div>
-            <div className="scale-labels">
-                <span>Max</span>
-                <span>Min</span>
+                <div className="scale-labels">
+                    <span>Low</span>
+                    <span>High</span>
+                </div>
             </div>
 
             {isLoading && (
                 <div className="loading-overlay">
                     <div className="loading-spinner" />
-                    <span className="loading-text">Computing...</span>
                 </div>
             )}
 
             {!fieldData && !isLoading && (
                 <div className="viz-placeholder">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <circle cx="12" cy="12" r="4" />
-                    </svg>
                     <p>Interference map</p>
                 </div>
             )}
-        </>
+        </div>
     );
 };
 

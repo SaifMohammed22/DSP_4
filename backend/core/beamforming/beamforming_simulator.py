@@ -147,8 +147,8 @@ class BeamformingSimulator:
         y = np.linspace(0, grid_range * 2, grid_size)  # Start from 0 like reference
         X, Y = np.meshgrid(x, y)
         
-        # Initialize amplitude field
-        amplitude = np.zeros_like(X)
+        # Initialize complex field for both interference and intensity
+        complex_field = np.zeros_like(X, dtype=complex)
         
         all_positions = []
         
@@ -160,7 +160,6 @@ class BeamformingSimulator:
             beam_angle = array.get('beam_angle', 0)
             if beam_angle != 0 and phase_shift == 0:
                 # Progressive phase shift for beam steering
-                # phase_shift = 2*pi*d*sin(theta)/lambda where d is in wavelengths
                 phase_shift = 2 * np.pi * array['element_spacing'] * np.sin(np.deg2rad(beam_angle))
             
             for i, (ex, ey) in enumerate(zip(x_pos, y_pos)):
@@ -169,24 +168,37 @@ class BeamformingSimulator:
                 # Distance from element to all grid points
                 distance = np.sqrt((X - ex)**2 + (Y - ey)**2)
                 
-                # Sine wave interference pattern (matching reference app formula)
-                # amplitude += sin(2*pi*f + i*phase_shift + 2*pi*f*distance)
-                amplitude += np.sin(
+                # Complex wave representation: exp(j * (2*pi*f*t + i*phase_shift + 2*pi*f*distance))
+                # For visualization, 2*pi*f*t is a global phase offset (t=0)
+                complex_field += np.exp(1j * (
                     2 * np.pi * self.frequency + 
                     i * phase_shift + 
                     2 * np.pi * self.frequency * distance
-                )
+                ))
         
-        # Normalize to [0, 1]
+        # Interference: Real part of complex field (oscillating)
+        amplitude = np.real(complex_field)
+        
+        # Intensity: Absolute value (envelope/beam shape)
+        intensity = np.abs(complex_field)
+        
+        # Normalize interference to [0, 1] for red-blue plot (0.5 is zero)
         if np.max(amplitude) != np.min(amplitude):
-            amplitude_normalized = (amplitude - np.min(amplitude)) / (np.max(amplitude) - np.min(amplitude))
+            interference_normalized = (amplitude - np.min(amplitude)) / (np.max(amplitude) - np.min(amplitude))
         else:
-            amplitude_normalized = np.zeros_like(amplitude)
+            interference_normalized = np.zeros_like(amplitude)
+            
+        # Normalize intensity to [0, 1] for beam plot
+        if np.max(intensity) > 0:
+            intensity_normalized = intensity / np.max(intensity)
+        else:
+            intensity_normalized = np.zeros_like(intensity)
         
         return {
             'X': X,
             'Y': Y,
-            'interference': amplitude_normalized,
+            'interference': interference_normalized,
+            'intensity': intensity_normalized,
             'positions': np.array(all_positions)
         }
     
