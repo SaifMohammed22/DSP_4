@@ -8,7 +8,9 @@ const MixerSidebar = ({
     onSettingsChange,
     onMix,
     isProcessing,
-    images
+    images,
+    unifiedRoi,
+    onRoiChange
 }) => {
     return (
         <aside className="mixer-sidebar">
@@ -30,6 +32,8 @@ const MixerSidebar = ({
                     regionSize={settings.regionSize}
                     onRegionTypeChange={(type) => onSettingsChange({ ...settings, regionType: type })}
                     onRegionSizeChange={(size) => onSettingsChange({ ...settings, regionSize: size })}
+                    unifiedRoi={unifiedRoi}
+                    onRoiChange={onRoiChange}
                 />
 
                 <OutputControls
@@ -37,25 +41,21 @@ const MixerSidebar = ({
                     onOutputPortChange={(port) => onSettingsChange({ ...settings, outputPort: port })}
                 />
 
-                <button
-                    className="mix-button"
-                    onClick={onMix}
-                    disabled={isProcessing || images.every(img => img.file === null)}
-                >
+                <div className="mixer-status">
                     {isProcessing ? (
-                        <>
-                            <span className="spinner"></span>
-                            Processing...
-                        </>
+                        <div className="status-syncing">
+                            <span className="spinner-small"></span>
+                            Updating...
+                        </div>
                     ) : (
-                        <>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mix-icon">
-                                <polygon points="5 3 19 12 5 21 5 3" />
+                        <div className="status-synced">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sync-icon">
+                                <polyline points="20 6 9 17 4 12" />
                             </svg>
-                            Mix Images
-                        </>
+                            Live Update Active
+                        </div>
                     )}
-                </button>
+                </div>
             </div>
         </aside>
     )

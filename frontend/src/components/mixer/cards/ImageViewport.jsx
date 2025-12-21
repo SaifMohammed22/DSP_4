@@ -1,167 +1,236 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 
-const ImageViewport = ({ image, onUpload, onBrightnessContrastChange }) => {
-    const [viewMode, setViewMode] = useState('original')
+const ImageViewport = ({ image, unifiedRoi, onUpload, onBrightnessContrastChange, onRegionSelect }) => {
+    const [viewMode, setViewMode] = useState('magnitude')
     const [isDragging, setIsDragging] = useState(false)
     const [isAdjusting, setIsAdjusting] = useState(false)
+    const [isResizing, setIsResizing] = useState(false)
+    const [resizeHandle, setResizeHandle] = useState(null)
     const [localBrightness, setLocalBrightness] = useState(image.brightness || 0)
     const [localContrast, setLocalContrast] = useState(image.contrast || 0)
     const fileInputRef = useRef(null)
     const adjustStartRef = useRef(null)
+    const ftContainerRef = useRef(null)
+    const [isDrawingRoi, setIsDrawingRoi] = useState(false)
+    const [roiStart, setRoiStart] = useState(null)
 
+    // ROI Selection/Resizing handlers for FT component
+    const handleRoiMouseDown = useCallback((e) => {
+        if (!image.file || e.button !== 0 || e.ctrlKey) return
+
+        const imgElement = ftContainerRef.current?.querySelector('img')
+        if (!imgElement) return
+
+        const rect = imgElement.getBoundingClientRect()
+        const x = ((e.clientX - rect.left) / rect.width) * 100
+        const y = ((e.clientY - rect.top) / rect.height) * 100
+
+        // Check if clicking a handle
+        if (e.target.classList.contains('resize-handle')) {
+            e.stopPropagation()
+            setIsResizing(true)
+            setResizeHandle(e.target.dataset.handle)
+            setRoiStart({ x, y, roi: { ...unifiedRoi } })
+            return
+        }
+
+        setIsDrawingRoi(true)
+        setRoiStart({ x, y })
+        onRegionSelect({ x, y, width: 0, height: 0 })
+    }, [image.file, unifiedRoi, onRegionSelect])
+
+    const handleRoiMouseMove = useCallback((e) => {
+        const imgElement = ftContainerRef.current?.querySelector('img')
+        if (!imgElement) return
+        const rect = imgElement.getBoundingClientRect()
+        const currentX = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+        const currentY = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
+
+        if (isDrawingRoi && roiStart) {
+            const newRoi = {
+                x: Math.min(roiStart.x, currentX),
+                y: Math.min(roiStart.y, currentY),
+                width: Math.abs(currentX - roiStart.x),
+                height: Math.abs(currentY - roiStart.y)
+            }
+            onRegionSelect(newRoi)
+        } else if (isResizing && resizeHandle && roiStart) {
+            const dx = currentX - roiStart.x
+            const dy = currentY - roiStart.y
+            const initialRoi = roiStart.roi
+            let newRoi = { ...initialRoi }
+
+            if (resizeHandle.includes('e')) newRoi.width = Math.max(1, initialRoi.width + dx)
+            if (resizeHandle.includes('w')) {
+                const newWidth = initialRoi.width - dx
+                if (newWidth > 1) {
+                    newRoi.x = initialRoi.x + dx
+                    newRoi.width = newWidth
+                }
+            }
+            if (resizeHandle.includes('s')) newRoi.height = Math.max(1, initialRoi.height + dy)
+            if (resizeHandle.includes('n')) {
+                const newHeight = initialRoi.height - dy
+                if (newHeight > 1) {
+                    newRoi.y = initialRoi.y + dy
+                    newRoi.height = newHeight
+                }
+            }
+            onRegionSelect(newRoi)
+        }
+    }, [isDrawingRoi, isResizing, resizeHandle, roiStart, onRegionSelect])
+
+    const handleRoiMouseUp = useCallback(() => {
+        setIsDrawingRoi(false)
+        setIsResizing(false)
+        setResizeHandle(null)
+        setRoiStart(null)
+    }, [])
+
+    useEffect(() => {
+        if (isDrawingRoi || isResizing) {
+            window.addEventListener('mouseup', handleRoiMouseUp)
+            window.addEventListener('mousemove', handleRoiMouseMove)
+            return () => {
+                window.removeEventListener('mouseup', handleRoiMouseUp)
+                window.removeEventListener('mousemove', handleRoiMouseMove)
+            }
+        }
+    }, [isDrawingRoi, isResizing, handleRoiMouseUp, handleRoiMouseMove])
+
+    // ... rest of the component remains similar ...
     const handleDrop = (e) => {
         e.preventDefault()
         setIsDragging(false)
         const file = e.dataTransfer.files[0]
-        if (file && file.type.startsWith('image/')) {
-            onUpload(file)
-        }
+        if (file && file.type.startsWith('image/')) onUpload(file)
     }
 
-    const handleDragOver = (e) => {
-        e.preventDefault()
-        setIsDragging(true)
-    }
-
-    const handleDragLeave = () => {
-        setIsDragging(false)
-    }
-
-    const handleClick = () => {
-        fileInputRef.current?.click()
-    }
-
-    const handleFileChange = (e) => {
+    const handleFileUpload = (e) => {
         const file = e.target.files?.[0]
-        if (file) {
-            onUpload(file)
-        }
+        if (file) onUpload(file)
     }
 
-    // Mouse drag for brightness/contrast adjustment
     const handleMouseDown = (e) => {
         if (!image.file || !image.originalUrl) return
-
-        // Only adjust on right click or ctrl+left click
         if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
             e.preventDefault()
             setIsAdjusting(true)
-            adjustStartRef.current = {
-                x: e.clientX,
-                y: e.clientY,
-                brightness: localBrightness,
-                contrast: localContrast
-            }
+            adjustStartRef.current = { x: e.clientX, y: e.clientY, brightness: localBrightness, contrast: localContrast }
         }
     }
 
     const handleMouseMove = (e) => {
         if (!isAdjusting || !adjustStartRef.current) return
-
         const deltaX = e.clientX - adjustStartRef.current.x
         const deltaY = e.clientY - adjustStartRef.current.y
-
-        // Horizontal movement controls contrast, vertical controls brightness
-        const newContrast = Math.max(-100, Math.min(100, adjustStartRef.current.contrast + deltaX * 0.5))
-        const newBrightness = Math.max(-100, Math.min(100, adjustStartRef.current.brightness - deltaY * 0.5))
-
-        setLocalContrast(newContrast)
-        setLocalBrightness(newBrightness)
+        setLocalContrast(Math.max(-100, Math.min(100, adjustStartRef.current.contrast + deltaX * 0.5)))
+        setLocalBrightness(Math.max(-100, Math.min(100, adjustStartRef.current.brightness - deltaY * 0.5)))
     }
 
-    const handleMouseUp = () => {
+    const finishAdjustment = () => {
         if (isAdjusting) {
             setIsAdjusting(false)
             onBrightnessContrastChange(localBrightness, localContrast)
         }
     }
 
-    const handleContextMenu = (e) => {
-        if (image.file) {
-            e.preventDefault()
-        }
-    }
-
-    const handleDoubleClick = () => {
-        if (image.file) {
-            fileInputRef.current?.click()
-        }
-    }
-
-    const getCurrentImageUrl = () => {
+    const getFtImageUrl = () => {
+        if (!image.file) return null
         switch (viewMode) {
-            case 'original': return image.originalUrl
             case 'magnitude': return image.ftMagnitudeUrl
             case 'phase': return image.ftPhaseUrl
             case 'real': return image.ftRealUrl
             case 'imaginary': return image.ftImaginaryUrl
-            default: return image.originalUrl
+            default: return image.ftMagnitudeUrl
         }
     }
 
-    const currentUrl = getCurrentImageUrl()
+    const ftUrl = getFtImageUrl()
 
     return (
-        <div className="image-viewport">
+        <div className="image-viewport compact">
             <div className="viewport-header">
                 <span className="viewport-title">Image {image.id}</span>
                 {image.file && (
-                    <span className="bc-indicator" title="Brightness / Contrast">
+                    <span className="bc-indicator">
                         B:{Math.round(localBrightness)} C:{Math.round(localContrast)}
                     </span>
                 )}
-                <select
-                    className="view-mode-select"
-                    value={viewMode}
-                    onChange={(e) => setViewMode(e.target.value)}
-                    disabled={!image.file}
-                >
-                    <option value="original">Original</option>
-                    <option value="magnitude">FT Magnitude</option>
-                    <option value="phase">FT Phase</option>
-                    <option value="real">FT Real</option>
-                    <option value="imaginary">FT Imaginary</option>
-                </select>
             </div>
 
-            <div
-                className={`viewport-content ${isDragging ? 'dragging' : ''} ${isAdjusting ? 'adjusting' : ''}`}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={!image.file ? handleClick : undefined}
-                onDoubleClick={handleDoubleClick}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onContextMenu={handleContextMenu}
-            >
-                {currentUrl ? (
-                    <img
-                        src={currentUrl}
-                        alt={`Image ${image.id} - ${viewMode}`}
-                        draggable={false}
-                    />
-                ) : (
-                    <div className="upload-placeholder">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="upload-icon">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="17 8 12 3 7 8" />
-                            <line x1="12" y1="3" x2="12" y2="15" />
-                        </svg>
-                        <p>Drop image here or click to upload</p>
-                        <p className="hint">Right-click + drag to adjust brightness/contrast</p>
+            <div className="viewport-dual-content">
+                <div
+                    className={`viewport-panel original-panel ${isDragging ? 'dragging' : ''} ${isAdjusting ? 'adjusting' : ''}`}
+                    onDrop={handleDrop}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onClick={() => !image.file && fileInputRef.current.click()}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={finishAdjustment}
+                    onMouseLeave={finishAdjustment}
+                    onContextMenu={(e) => e.preventDefault()}
+                >
+                    <div className="panel-label">Original</div>
+                    {image.originalUrl ? (
+                        <img src={image.originalUrl} alt="Original" draggable={false} />
+                    ) : (
+                        <div className="upload-placeholder compact">
+                            <p>Drop image</p>
+                        </div>
+                    )}
+                </div>
+
+                <div
+                    ref={ftContainerRef}
+                    className="viewport-panel ft-panel"
+                    onMouseDown={handleRoiMouseDown}
+                >
+                    <div className="panel-label-row">
+                        <select
+                            className="ft-mode-select"
+                            value={viewMode}
+                            onChange={(e) => setViewMode(e.target.value)}
+                            disabled={!image.file}
+                        >
+                            <option value="magnitude">Magnitude</option>
+                            <option value="phase">Phase</option>
+                            <option value="real">Real</option>
+                            <option value="imaginary">Imaginary</option>
+                        </select>
                     </div>
-                )}
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                />
+                    {ftUrl ? (
+                        <div className="ft-relative-container">
+                            <img src={ftUrl} alt="FT" draggable={false} />
+                            {unifiedRoi && (
+                                <div
+                                    className={`roi-overlay mode-${unifiedRoi.mode}`}
+                                    style={{
+                                        left: `${unifiedRoi.x}%`,
+                                        top: `${unifiedRoi.y}%`,
+                                        width: `${unifiedRoi.width}%`,
+                                        height: `${unifiedRoi.height}%`
+                                    }}
+                                >
+                                    <div className="resize-handle nw" data-handle="nw"></div>
+                                    <div className="resize-handle n" data-handle="n"></div>
+                                    <div className="resize-handle ne" data-handle="ne"></div>
+                                    <div className="resize-handle w" data-handle="w"></div>
+                                    <div className="resize-handle e" data-handle="e"></div>
+                                    <div className="resize-handle sw" data-handle="sw"></div>
+                                    <div className="resize-handle s" data-handle="s"></div>
+                                    <div className="resize-handle se" data-handle="se"></div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="empty-ft-placeholder">FT Component</div>
+                    )}
+                </div>
             </div>
+
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
         </div>
     )
 }

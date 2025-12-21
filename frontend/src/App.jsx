@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Header from './components/layout/Header'
 import NavigationTabs from './components/layout/NavigationTabs'
 import ViewportSection from './components/mixer/ViewportSection'
@@ -29,6 +29,18 @@ function App() {
     })
 
     const [isProcessing, setIsProcessing] = useState(false)
+
+    // Unified Region of Interest selection
+    const [unifiedRoi, setUnifiedRoi] = useState({
+        x: 25, y: 25, width: 50, height: 50, mode: 'inner'
+    })
+
+    const handleRegionSelect = (roi) => {
+        setUnifiedRoi(prev => ({
+            ...prev,
+            ...roi
+        }))
+    }
 
     const handleImageUpload = async (id, file) => {
         const formData = new FormData()
@@ -120,7 +132,35 @@ function App() {
         }
     }
 
-    const handleMix = async () => {
+    // Track the latest mixing request to avoid race conditions
+    const mixRequestRef = useRef(0)
+
+    // Real-time mixing logic with debounce and cancellation
+    useEffect(() => {
+        // Only mix if at least one image is uploaded
+        if (images.every(img => img.file === null)) return
+
+        const controller = new AbortController()
+        const requestId = ++mixRequestRef.current
+
+        const timer = setTimeout(() => {
+            handleMix(controller.signal, requestId)
+        }, 400) // 400ms debounce for stability
+
+        return () => {
+            clearTimeout(timer)
+            controller.abort()
+        }
+    }, [
+        mixerSettings.componentWeights,
+        mixerSettings.selectedComponent,
+        mixerSettings.regionType,
+        mixerSettings.regionSize,
+        unifiedRoi,
+        images.map(img => img.originalBase64).join(',')
+    ])
+
+    const handleMix = async (signal, requestId) => {
         setIsProcessing(true)
 
         try {
@@ -129,10 +169,12 @@ function App() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                signal, // Pass the abort signal
                 body: JSON.stringify({
                     images: images.filter(img => img.file !== null).map(img => ({
                         id: img.id,
-                        weight: mixerSettings.componentWeights[img.id] / 100
+                        weight: mixerSettings.componentWeights[img.id] / 100,
+                        roi: unifiedRoi
                     })),
                     component: mixerSettings.selectedComponent,
                     regionType: mixerSettings.regionType,
@@ -141,9 +183,14 @@ function App() {
                 })
             })
 
-            if (response.ok) {
-                const data = await response.json()
-                const resultUrl = `data:image/png;base64,${data.result}`
+            if (!response.ok) return
+
+            // If a newer request has already started, ignore this one
+            if (requestId !== mixRequestRef.current) return
+
+            const result = await response.json()
+            if (result.success) {
+                const resultUrl = `data:image/png;base64,${result.result}`
                 if (mixerSettings.outputPort === 1) {
                     setOutputImages(prev => ({ ...prev, output1: resultUrl }))
                 } else {
@@ -151,9 +198,13 @@ function App() {
                 }
             }
         } catch (error) {
+            if (error.name === 'AbortError') return
             console.error('Error mixing images:', error)
         } finally {
-            setIsProcessing(false)
+            // Only stop processing indicator if this was the latest request
+            if (requestId === mixRequestRef.current) {
+                setIsProcessing(false)
+            }
         }
     }
 
@@ -167,8 +218,10 @@ function App() {
                     <div className="mixer-layout">
                         <ViewportSection
                             images={images}
+                            unifiedRoi={unifiedRoi}
                             onImageUpload={handleImageUpload}
                             onBrightnessContrastChange={handleBrightnessContrastChange}
+                            onRegionSelect={handleRegionSelect}
                         />
                         <MixerSidebar
                             settings={mixerSettings}
@@ -176,6 +229,8 @@ function App() {
                             onMix={handleMix}
                             isProcessing={isProcessing}
                             images={images}
+                            unifiedRoi={unifiedRoi}
+                            onRoiChange={handleRegionSelect}
                         />
                         <OutputSection outputs={outputImages} />
                     </div>

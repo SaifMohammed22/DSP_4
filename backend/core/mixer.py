@@ -15,6 +15,7 @@ class Mixer:
     @staticmethod
     def mix_images(
         image_weights: Dict[str, float],
+        image_bboxes: Dict[str, dict] = None,
         component: str = 'magnitude',
         region_type: str = 'full',
         region_size: float = 0.5
@@ -55,6 +56,7 @@ class Mixer:
             result_fft = Mixer._mix_magnitude_phase(
                 available_images,
                 image_weights,
+                image_bboxes or {},
                 component,
                 target_shape,
                 region_type,
@@ -64,6 +66,7 @@ class Mixer:
             result_fft = Mixer._mix_real_imaginary(
                 available_images,
                 image_weights,
+                image_bboxes or {},
                 component,
                 target_shape,
                 region_type,
@@ -77,6 +80,7 @@ class Mixer:
     def _mix_magnitude_phase(
         available_images: Dict[str, dict],
         image_weights: Dict[str, float],
+        image_bboxes: Dict[str, dict],
         component: str,
         target_shape: tuple,
         region_type: str,
@@ -96,35 +100,47 @@ class Mixer:
         """
         result_magnitude = np.zeros(target_shape, dtype=np.float64)
         result_phase = np.zeros(target_shape, dtype=np.float64)
-        total_weight = 0
+        spatial_weight_map = np.zeros(target_shape, dtype=np.float64)
         
+        # Determine which images contribute to which component based on user selection
         for img_id, fft_data in available_images.items():
             weight = image_weights.get(img_id, 0)
             if weight > 0:
                 mag = fft_data['magnitude']
                 ph = fft_data['phase']
                 
-                # Fallback resize if shapes don't match (should not happen normally)
-                # Images are resized to unified dimensions during upload
-                if mag.shape != target_shape:
-                    mag = cv2.resize(mag, (target_shape[1], target_shape[0]))
-                    ph = cv2.resize(ph, (target_shape[1], target_shape[0]))
-                
                 # Apply region mask
-                mask = FFTProcessor.create_region_mask(target_shape, region_type, region_size)
+                if region_type == 'rectangle':
+                    roi_data = image_bboxes.get(img_id)
+                    mask = FFTProcessor.create_bbox_mask(
+                        target_shape, 
+                        roi_data, 
+                        mode=roi_data.get('mode', 'inner') if isinstance(roi_data, dict) else 'inner'
+                    )
+                else:
+                    mask = FFTProcessor.create_region_mask(target_shape, region_type, region_size)
+                
+                # Contribution to the spatial map
+                effective_weight = weight * mask
+                spatial_weight_map += effective_weight
                 
                 if component == 'magnitude':
-                    result_magnitude += weight * mag * mask
-                    result_phase += weight * ph
+                    result_magnitude += effective_weight * mag
+                    # For phase, we still need a phase component. 
+                    # If we're "cropping", we take the phase from the same image's region.
+                    result_phase += effective_weight * ph
                 else:  # phase
-                    result_phase += weight * ph * mask
-                    result_magnitude += weight * mag
-                
-                total_weight += weight
+                    result_phase += effective_weight * ph
+                    result_magnitude += effective_weight * mag
         
-        if total_weight > 0:
-            result_magnitude /= total_weight
-            result_phase /= total_weight
+        # Avoid division by zero
+        spatial_weight_map[spatial_weight_map == 0] = 1e-10
+        
+        result_magnitude /= spatial_weight_map
+        result_phase /= spatial_weight_map
+        
+        # Zero out regions where no weight was applied (true cropping effect)
+        result_magnitude[spatial_weight_map < 1e-9] = 0
         
         # Reconstruct complex FFT
         return result_magnitude * np.exp(1j * result_phase)
@@ -133,6 +149,7 @@ class Mixer:
     def _mix_real_imaginary(
         available_images: Dict[str, dict],
         image_weights: Dict[str, float],
+        image_bboxes: Dict[str, dict],
         component: str,
         target_shape: tuple,
         region_type: str,
@@ -152,7 +169,7 @@ class Mixer:
         """
         result_real = np.zeros(target_shape, dtype=np.float64)
         result_imag = np.zeros(target_shape, dtype=np.float64)
-        total_weight = 0
+        spatial_weight_map = np.zeros(target_shape, dtype=np.float64)
         
         for img_id, fft_data in available_images.items():
             weight = image_weights.get(img_id, 0)
@@ -160,27 +177,36 @@ class Mixer:
                 real = fft_data['real']
                 imag = fft_data['imaginary']
                 
-                # Fallback resize if shapes don't match (should not happen normally)
-                # Images are resized to unified dimensions during upload
-                if real.shape != target_shape:
-                    real = cv2.resize(real, (target_shape[1], target_shape[0]))
-                    imag = cv2.resize(imag, (target_shape[1], target_shape[0]))
-                
                 # Apply region mask
-                mask = FFTProcessor.create_region_mask(target_shape, region_type, region_size)
+                if region_type == 'rectangle':
+                    roi_data = image_bboxes.get(img_id)
+                    mask = FFTProcessor.create_bbox_mask(
+                        target_shape, 
+                        roi_data, 
+                        mode=roi_data.get('mode', 'inner') if isinstance(roi_data, dict) else 'inner'
+                    )
+                else:
+                    mask = FFTProcessor.create_region_mask(target_shape, region_type, region_size)
+                
+                effective_weight = weight * mask
+                spatial_weight_map += effective_weight
                 
                 if component == 'real':
-                    result_real += weight * real * mask
-                    result_imag += weight * imag
+                    result_real += effective_weight * real
+                    result_imag += effective_weight * imag
                 else:  # imaginary
-                    result_imag += weight * imag * mask
-                    result_real += weight * real
+                    result_imag += effective_weight * imag
+                    result_real += effective_weight * real
                 
-                total_weight += weight
+        # Avoid division by zero
+        spatial_weight_map[spatial_weight_map == 0] = 1e-10
         
-        if total_weight > 0:
-            result_real /= total_weight
-            result_imag /= total_weight
+        result_real /= spatial_weight_map
+        result_imag /= spatial_weight_map
+        
+        # True cropping: zero out areas with no contribution
+        result_real[spatial_weight_map < 1e-9] = 0
+        result_imag[spatial_weight_map < 1e-9] = 0
         
         # Reconstruct complex FFT
         return result_real + 1j * result_imag
