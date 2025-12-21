@@ -1,0 +1,390 @@
+/* Beamforming Simulator - Compact Layout */
+
+/* Main Container */
+.beamforming-container {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: calc(100vh - 100px);
+  gap: 16px;
+  padding: 16px;
+  background: #0f0f14;
+}
+
+/* Control Panel */
+.control-panel {
+  background: #1a1a24;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  border: 1px solid #2a2a3a;
+}
+
+.control-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.control-panel::-webkit-scrollbar-track {
+  background: #1a1a24;
+}
+
+.control-panel::-webkit-scrollbar-thumb {
+  background: #3a3a4a;
+  border-radius: 3px;
+}
+
+/* Control Groups */
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group label {
+  font-size: 13px;
+  color: #a0a0b0;
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.control-group .value {
+  color: #6366f1;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  background: #252535;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Sliders */
+.control-group input[type="range"] {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #252535;
+  border-radius: 3px;
+  outline: none;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #6366f1;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #818cf8;
+}
+
+/* Stepper (+/- buttons with slider) */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper input[type="range"] {
+  flex: 1;
+}
+
+.stepper button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #252535;
+  color: #e0e0e8;
+  border-radius: 6px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stepper button:hover {
+  background: #6366f1;
+  color: white;
+}
+
+.stepper button:active {
+  transform: scale(0.95);
+}
+
+/* Toggle Buttons */
+.toggle-group {
+  display: flex;
+  gap: 4px;
+  background: #252535;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.toggle-group button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: #808090;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.toggle-group button.active {
+  background: #6366f1;
+  color: white;
+}
+
+.toggle-group button:hover:not(.active) {
+  color: #e0e0e8;
+  background: #353545;
+}
+
+/* Scenario Buttons */
+.control-group.scenarios {
+  margin-top: auto;
+  border-top: 1px solid #2a2a3a;
+  padding-top: 16px;
+}
+
+.scenario-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scenario-buttons button {
+  padding: 10px 14px;
+  border: 1px solid #2a2a3a;
+  background: #1f1f2a;
+  color: #b0b0c0;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.scenario-buttons button:hover {
+  border-color: #6366f1;
+  background: #252535;
+  color: #e0e0e8;
+}
+
+.scenario-buttons button.active {
+  border-color: #6366f1;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+  color: #a5b4fc;
+}
+
+/* Visualization Panel */
+.visualization-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.viz-box {
+  flex: 1;
+  background: #1a1a24;
+  border-radius: 12px;
+  border: 1px solid #2a2a3a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 250px;
+}
+
+.viz-title {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e0e8;
+  background: #1f1f2a;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.viz-content {
+  flex: 1;
+  position: relative;
+  background: #0a0a0f;
+  overflow: hidden;
+}
+
+/* Canvas styling */
+.viz-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Placeholder */
+.viz-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: #606070;
+}
+
+.viz-placeholder svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.viz-placeholder p {
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 15, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #2a2a3a;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  color: #808090;
+  font-size: 12px;
+}
+
+/* Global loading indicator */
+.global-loading {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: #6366f1;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 100;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Color scale legend */
+.color-scale {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  bottom: 16px;
+  width: 16px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #2a2a3a;
+}
+
+.color-gradient {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom,
+      #ff0000 0%,
+      #0000ff 50%,
+      #ff0000 100%);
+}
+
+.scale-labels {
+  position: absolute;
+  right: 40px;
+  top: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #808090;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .beamforming-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .control-panel {
+    max-height: 300px;
+  }
+
+  .scenario-buttons {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .scenario-buttons button {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+/* Legacy class support */
+.beamforming-page {
+  display: contents;
+}
+
+.beamforming-controls {
+  display: contents;
+}
+
+.viz-section {
+  display: contents;
+}
+
+.plot-container {
+  display: contents;
+}

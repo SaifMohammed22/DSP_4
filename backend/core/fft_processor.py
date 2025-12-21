@@ -4,7 +4,7 @@ Handles FFT computation, component extraction, and display preparation.
 """
 import numpy as np
 import cv2
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 from .image_processor import ImageProcessor
 from .storage import storage
 
@@ -165,4 +165,40 @@ class FFTProcessor:
             mask[:] = 1
             mask[crow - r_height:crow + r_height, ccol - r_width:ccol + r_width] = 0
         
+        return mask
+
+    @staticmethod
+    def create_bbox_mask(
+        shape: Tuple[int, int],
+        bbox: Optional[dict],
+        mode: str = 'inner'
+    ) -> np.ndarray:
+        """
+        Create a mask from a bounding box (percentage-based).
+        
+        Args:
+            shape: Image shape (height, width)
+            bbox: Dictionary with x, y, width, height (0-100)
+            mode: 'inner' (keep inside) or 'outer' (keep outside)
+            
+        Returns:
+            Binary mask
+        """
+        if bbox is None:
+            return np.ones(shape, dtype=np.float64)
+            
+        rows, cols = shape
+        
+        # Convert percentages to pixel indices
+        x_min = int(max(0, bbox['x'] * cols / 100))
+        y_min = int(max(0, bbox['y'] * rows / 100))
+        x_max = int(min(cols, (bbox['x'] + bbox['width']) * cols / 100))
+        y_max = int(min(rows, (bbox['y'] + bbox['height']) * rows / 100))
+        
+        mask = np.zeros(shape, dtype=np.float64)
+        mask[y_min:y_max, x_min:x_max] = 1
+        
+        if mode == 'outer':
+            mask = 1 - mask
+            
         return mask

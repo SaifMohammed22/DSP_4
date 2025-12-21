@@ -73,7 +73,7 @@ class Validator:
         
         # Validate region type
         region_type = data.get('regionType', 'full')
-        if region_type not in ['full', 'inner', 'outer']:
+        if region_type not in ['full', 'inner', 'outer', 'rectangle']:
             return False, f'Invalid region type: {region_type}'
         
         # Validate region size

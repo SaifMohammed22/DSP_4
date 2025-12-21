@@ -1,0 +1,24 @@
+{
+    "id": "receiver_mode_5g",
+    "name": "Receiver Mode 5G",
+    "description": "5G receiver array for direction of arrival estimation",
+    "frequency": 8,
+    "mode": "receiver",
+    "grid_range": 20,
+    "arrays": [
+        {
+            "array_id": "array_1",
+            "num_elements": 16,
+            "element_spacing": 0.5,
+            "geometry": "linear",
+            "curvature_radius": 10,
+            "position": [
+                0,
+                0
+            ],
+            "orientation": 0,
+            "phase_shift": 0,
+            "beam_angle": 15
+        }
+    ]
+}

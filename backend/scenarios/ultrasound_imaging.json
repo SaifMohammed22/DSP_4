@@ -1,0 +1,24 @@
+{
+    "id": "ultrasound_imaging",
+    "name": "Ultrasound Imaging",
+    "description": "Medical ultrasound beam pattern for diagnostic imaging",
+    "frequency": 5,
+    "mode": "transmitter",
+    "grid_range": 25,
+    "arrays": [
+        {
+            "array_id": "array_1",
+            "num_elements": 32,
+            "element_spacing": 0.4,
+            "geometry": "curved",
+            "curvature_radius": 8,
+            "position": [
+                0,
+                0
+            ],
+            "orientation": 0,
+            "phase_shift": 0,
+            "beam_angle": 0
+        }
+    ]
+}

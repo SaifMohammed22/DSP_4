@@ -28,6 +28,7 @@ def mix_images():
         
         # Extract parameters
         image_weights = {str(img['id']): img['weight'] for img in data.get('images', [])}
+        image_bboxes = {str(img['id']): img.get('roi') for img in data.get('images', [])}
         component = data.get('component', 'magnitude')
         region_type = data.get('regionType', 'full')
         region_size = data.get('regionSize', 0.5)
@@ -35,6 +36,7 @@ def mix_images():
         # Perform mixing
         result_img = Mixer.mix_images(
             image_weights=image_weights,
+            image_bboxes=image_bboxes,
             component=component,
             region_type=region_type,
             region_size=region_size
